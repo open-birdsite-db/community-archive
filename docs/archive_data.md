@@ -125,6 +125,8 @@ window.YTD.follower.part0 = [
 
 account.js:
 
+We don't keep your email in the db.
+
 ```json
 window.YTD.account.part0 = [
   {
