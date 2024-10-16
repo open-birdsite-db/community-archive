@@ -22,11 +22,11 @@
 - [x] Website
   - [x] Twitter-like advanced full text search
   - [x] User pages with top tweets and a button to copy as text (to put in LLM context)
+- [x] [Keyword and concept trends analysis ](https://labs-community-archive.streamlit.app/)
 - [ ] Website improvements:
   - [ ] Restyle front page
   - [ ] Render threads
 - [ ] User clones via tweet distillation and LLM simulation
-- [ ] Keyword and concept trends analysis
 - [ ] Semantic search
 - [ ] User summary pages (interests, projects, relationships)
 - [ ] Discourse mapping
