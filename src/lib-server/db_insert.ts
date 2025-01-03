@@ -150,8 +150,8 @@ const processAndInsertTweetEntities = async (
   const tweetUrls = tweets.flatMap((tweet) =>
     tweet.entities.urls.map((url: any) => ({
       url: url.url,
-      expanded_url: url.expanded_url || '',
-      display_url: url.display_url || '',
+      expanded_url: url.expanded_url,
+      display_url: url.display_url,
       tweet_id: tweet.id_str,
     })),
   )
