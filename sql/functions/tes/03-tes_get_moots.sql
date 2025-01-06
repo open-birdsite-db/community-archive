@@ -15,6 +15,6 @@ BEGIN
         ON f1.account_id = f2.account_id 
         AND f1.follower_account_id = f2.following_account_id
 	left join mentioned_users mu on mu.user_id = f1.follower_account_id
-    where f1.account_id = get_moots.user_id;
+    where f1.account_id = $1;
 END;
 $$ LANGUAGE plpgsql;
