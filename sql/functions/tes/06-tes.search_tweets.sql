@@ -1,6 +1,7 @@
-DROP FUNCTION IF EXISTS tes_search_tweets;
+DROP FUNCTION IF EXISTS tes.search_tweets;
 
-CREATE OR REPLACE FUNCTION tes_search_tweets(
+
+CREATE OR REPLACE FUNCTION tes.search_tweets(
   search_query TEXT,
   from_user TEXT DEFAULT NULL,
   to_user TEXT DEFAULT NULL,
@@ -57,7 +58,7 @@ BEGIN
   WITH matching_tweets AS (
     SELECT t.tweet_id
     FROM tweets t
-    WHERE (search_query = '' OR t.fts @@ to_tsquery('english', search_query))
+    WHERE (search_query = '' OR t.fts @@ websearch_to_tsquery('english', search_query))
       AND (from_account_id IS NULL OR t.account_id = from_account_id)
       AND (to_account_id IS NULL OR t.reply_to_user_id = to_account_id)
       AND (since_date IS NULL OR t.created_at >= since_date)
