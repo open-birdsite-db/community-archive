@@ -1,4 +1,3 @@
-ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.apply_readonly_rls_policies(schema_name TEXT, table_name TEXT) 
 RETURNS void AS $$
@@ -24,5 +23,5 @@ BEGIN
     EXECUTE format('CREATE POLICY "Public read access" ON %I.%I FOR SELECT USING (true)', schema_name, table_name);
 END;
 $$ LANGUAGE plpgsql;
-
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 SELECT public.apply_readonly_rls_policies('public', 'conversations');

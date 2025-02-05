@@ -1,5 +1,6 @@
 DROP MATERIALIZED VIEW IF EXISTS public.account_activity_summary;
 
+EXPLAIN ANALYZE
 CREATE MATERIALIZED VIEW public.account_activity_summary AS
 WITH account_mentions AS (
   SELECT 
@@ -85,35 +86,5 @@ FROM public.account a
 LEFT JOIN mentioned_accounts ma ON ma.account_id = a.account_id
 LEFT JOIN top_tweets tt ON tt.account_id = a.account_id;
 
-CREATE UNIQUE INDEX idx_account_activity_summary_account_id
-ON public.account_activity_summary (account_id);
 
-CREATE TABLE IF NOT EXISTS private.materialized_view_refresh_logs (
-    view_name text NOT NULL,
-    refresh_started_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    refresh_completed_at timestamptz,
-    duration_ms bigint
-);
 
-CREATE OR REPLACE FUNCTION private.refresh_account_activity_summary()
-RETURNS void AS $$
-DECLARE
-    start_time timestamptz;
-    end_time timestamptz;
-BEGIN
-    start_time := CURRENT_TIMESTAMP;
-    
-    INSERT INTO private.materialized_view_refresh_logs (view_name)
-    VALUES ('account_activity_summary');
-
-    REFRESH MATERIALIZED VIEW public.account_activity_summary;
-    
-    end_time := CURRENT_TIMESTAMP;
-    
-    UPDATE private.materialized_view_refresh_logs
-    SET refresh_completed_at = end_time,
-        duration_ms = EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
-    WHERE view_name = 'account_activity_summary'
-    AND refresh_started_at = start_time;
-END;
-$$ LANGUAGE plpgsql;

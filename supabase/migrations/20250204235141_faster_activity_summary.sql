@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_activity_summary_account_id ON public.account_activity_summary (account_id);

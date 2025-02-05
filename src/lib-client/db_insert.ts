@@ -378,24 +378,31 @@ export const processTwitterArchive = async (
     }, 'Error inserting all_account data')
 
     // Create initial archive_upload record
-    console.log('Creating archive upload record...')
+    console.log('Creating/updating archive upload record...')
     const uploadOptions = archiveData['upload-options'] || {
       keepPrivate: false,
       uploadLikes: true,
       startDate: null,
       endDate: null,
     }
+
     const { data: archiveUploadId, error: uploadError } = await supabase
       .from('archive_upload')
-      .insert({
-        account_id: accountId,
-        archive_at: latestTweetDate,
-        keep_private: uploadOptions.keepPrivate,
-        upload_likes: uploadOptions.uploadLikes,
-        start_date: uploadOptions.startDate,
-        end_date: uploadOptions.endDate,
-        upload_phase: 'uploading',
-      })
+      .upsert(
+        {
+          account_id: accountId,
+          archive_at: latestTweetDate,
+          keep_private: uploadOptions.keepPrivate,
+          upload_likes: uploadOptions.uploadLikes,
+          start_date: uploadOptions.startDate,
+          end_date: uploadOptions.endDate,
+          upload_phase: 'uploading',
+        },
+        {
+          onConflict: 'account_id',
+          ignoreDuplicates: false,
+        },
+      )
       .select('id')
       .single()
 
@@ -534,22 +541,6 @@ export const processTwitterArchive = async (
       if (error) throw error
     }, 'Error updating archive upload phase')
 
-    // try {
-    //   const commitStartTime = Date.now()
-    //   const { data, error } = await supabase
-    //     .schema('public')
-    //     .rpc('commit_temp_data', {
-    //       p_suffix: suffix,
-    //     })
-    //   if (error) throw error
-    //   const commitEndTime = Date.now()
-    //   console.log(
-    //     `Commit processing time: ${commitEndTime - commitStartTime}ms`,
-    //   )
-    // } catch (error: any) {
-    //   // console.error('Error processing Twitter archive:', error)
-    // }
-
     console.log('Twitter archive processing completed successfully.')
     progressCallback({
       phase: 'Archive Uploaded',
@@ -562,6 +553,19 @@ export const processTwitterArchive = async (
     )
   } catch (error: any) {
     console.error('Error processing Twitter archive:', error)
+
+    // Update upload_phase to failed
+    try {
+      await retryOperation(async () => {
+        const { error: phaseError } = await supabase
+          .from('archive_upload')
+          .update({ upload_phase: 'failed' })
+          .eq('account_id', accountId)
+        if (phaseError) throw phaseError
+      }, 'Error updating archive upload phase to failed')
+    } catch (updateError: any) {
+      console.error('Error updating upload phase to failed:', updateError)
+    }
 
     // Attempt to drop temporary tables
     try {

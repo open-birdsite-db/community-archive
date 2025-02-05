@@ -11,7 +11,7 @@ DROP FUNCTION IF EXISTS private.process_jobs() CASCADE;
 CREATE TABLE IF NOT EXISTS private.job_queue (
 key TEXT PRIMARY KEY,
 timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-status TEXT CHECK (status IN ('QUEUED', 'PROCESSING', 'DONE'))
+status TEXT CHECK (status IN ('QUEUED', 'PROCESSING', 'DONE', 'FAILED'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_job_queue_status_timestamp ON private.job_queue (status, timestamp);
@@ -69,23 +69,34 @@ UPDATE private.job_queue
 SET status = 'PROCESSING'
 WHERE key = v_job.key;
 
--- Do the job
-IF v_job.key = 'archive_changes' THEN
-    RAISE NOTICE 'Refreshing materialized views concurrently';
-    REFRESH MATERIALIZED VIEW CONCURRENTLY public.global_activity_summary;
-    REFRESH MATERIALIZED VIEW CONCURRENTLY public.account_activity_summary;
-    REFRESH MATERIALIZED VIEW CONCURRENTLY public.quote_tweets;
-    PERFORM private.post_upload_update_conversation_ids();
-END IF;
+BEGIN  -- Start exception block
+    -- Do the job
+    IF v_job.key = 'archive_changes' THEN
+        RAISE NOTICE 'Refreshing materialized views concurrently';
+        REFRESH MATERIALIZED VIEW CONCURRENTLY public.global_activity_summary;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY public.account_activity_summary;
+        REFRESH MATERIALIZED VIEW CONCURRENTLY public.quote_tweets_mv;
+        PERFORM private.post_upload_update_conversation_ids();
+    END IF;
 
-IF v_job.key = 'update_conversation_ids' THEN
-    RAISE NOTICE 'Updating conversation ids';
+    IF v_job.key = 'update_conversation_ids' THEN
+        RAISE NOTICE 'Updating conversation ids';
+        
+    END IF;
+
+    -- Delete the job only if successful
+    DELETE FROM private.job_queue WHERE key = v_job.key;
+    RAISE NOTICE 'Job completed and removed from queue: %', v_job.key;
+
+EXCEPTION WHEN OTHERS THEN
+    -- On any error, mark the job as failed
+    UPDATE private.job_queue 
+    SET status = 'FAILED'
+    WHERE key = v_job.key;
     
-END IF;
+    RAISE NOTICE 'Job failed with error: %', SQLERRM;
+END;
 
--- Delete the job
-DELETE FROM private.job_queue WHERE key = v_job.key;
-RAISE NOTICE 'Job completed and removed from queue: %', v_job.key;
 END;
 $$ LANGUAGE plpgsql;
 -- Enable pg_cron extension if not already enabled
